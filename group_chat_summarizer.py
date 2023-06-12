@@ -159,7 +159,8 @@ def whatsapp_chunk_text(messages):
     return chunks
 
 
-def call_gpt(prompt):
+def call_gpt(prompt, api_key):
+    openai.api_key = api_key
     model = "gpt-4"
     messages = [{"role": "user", "content": prompt}]
     completion = openai.ChatCompletion.create(model=model, messages=messages)
@@ -169,29 +170,29 @@ def call_gpt(prompt):
     return response
 
 
-def summarize_text(text):
+def summarize_text(text, api_key):
     prompt = f""""{SUMMARY_PROMPT}\n\n {text}"""
-    return call_gpt(prompt)
+    return call_gpt(prompt, api_key)
 
 
-def generate_newsletter_intro(text):
+def generate_newsletter_intro(text, api_key):
     prompt = f""""{NEWSLETTER_PROMPT}\n\n {text}"""
-    return call_gpt(prompt)
+    return call_gpt(prompt, api_key)
 
 
-def summarize_messages(chunks):
+def summarize_messages(chunks, api_key):
     summary = ''
     calls_counter = 0
     for chunk in chunks:
         calls_counter += 1
         print(f"Sending prompt {calls_counter} out of {len(chunks)} to GPT! Chunk size: {len(chunk)}")
-        chunk_summary = summarize_text(chunk)
+        chunk_summary = summarize_text(chunk, api_key)
         summary += chunk_summary + '\n\n'
 
     return summary
 
 
-def main(chat_type, chat_export_file, summary_file, start_day_s, end_day_s, is_newsletter):
+def main(chat_type, chat_export_file, summary_file, start_day_s, end_day_s, is_newsletter, api_key):
     start_day = datetime.datetime.strptime(start_day_s, '%m/%d/%Y').date()
     end_day = datetime.datetime.strptime(end_day_s, '%m/%d/%Y').date()
     content = read_file(chat_export_file)
@@ -205,10 +206,10 @@ def main(chat_type, chat_export_file, summary_file, start_day_s, end_day_s, is_n
         filtered_messages = filter_messages_by_dates(parsed_messages, start_day, end_day)
         chunks = signal_chunk_text(filtered_messages)
 
-    summary = summarize_messages(chunks)
+    summary = summarize_messages(chunks, api_key)
 
     if is_newsletter:
-        intro = generate_newsletter_intro(summary)
+        intro = generate_newsletter_intro(summary, api_key)
         summary = intro + '\n\n' + summary
 
     print(('*' * 10) + '\nSummary:\n' + ('*' * 10))
@@ -225,6 +226,7 @@ if __name__ == "__main__":
     parser.add_argument("summary_file", help="Summary output file")
     parser.add_argument("start_date", help="When to start summarizing from")
     parser.add_argument("end_date", help="Until when to summarize")
+    parser.add_argument("openai_key", help="OpenAI API Key")
     parser.add_argument("--chat_type", help="WhatsApp or Signal")
     parser.add_argument("--newsletter", action=argparse.BooleanOptionalAction, help="Generate an introduction for a newsletter")
 
@@ -243,5 +245,6 @@ if __name__ == "__main__":
         args.summary_file,
         args.start_date,
         args.end_date,
-        args.newsletter
+        args.newsletter,
+        args.openai_key
     )
